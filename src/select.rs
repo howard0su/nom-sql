@@ -270,7 +270,36 @@ pub fn where_clause(i: &[u8]) -> IResult<&[u8], ConditionExpression> {
 
 // Parse rule for a SQL selection query.
 pub fn selection(i: &[u8]) -> IResult<&[u8], SelectStatement> {
-    terminated(nested_selection, statement_terminator)(i)
+    terminated(alt((nested_selection, simple_selection)), statement_terminator)(i)
+}
+
+// Parse rule for a SQL selection without table
+pub fn simple_selection(i: &[u8]) -> IResult<&[u8], SelectStatement> {
+    let (
+        remaining_input,
+        (_, _, _, fields, where_clause, limit),
+    ) = tuple((
+        tag_no_case("select"),
+        multispace1,
+        multispace0,
+        field_definition_expr,
+        opt(where_clause),
+        opt(limit_clause),
+    ))(i)?;
+    Ok((
+        remaining_input,
+        SelectStatement {
+            tables: Vec::<Table>::new(),
+            distinct: false,
+            fields,
+            join: Vec::<JoinClause>::new(),
+            where_clause,
+            group_by: None,
+            order: None,
+            limit,
+        },
+    ))
+
 }
 
 pub fn nested_selection(i: &[u8]) -> IResult<&[u8], SelectStatement> {
@@ -361,8 +390,6 @@ mod tests {
         use common::Literal;
 
         let qstring = "SELECT NULL, 1, \"foo\", CURRENT_TIME, @@version FROM users;";
-        // TODO: doesn't support selecting literals without a FROM clause, which is still valid SQL
-        //        let qstring = "SELECT NULL, 1, \"foo\";";
 
         let res = selection(qstring.as_bytes());
         assert_eq!(
@@ -384,6 +411,35 @@ mod tests {
                     )),
                     FieldDefinitionExpression::Value(FieldValueExpression::Literal(
                         Literal::Variable("@version".to_owned()).into(),
+                    )),
+                ],
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn select_literals_without_table() {
+        use common::Literal;
+
+        let qstring = "SELECT NULL, 1, \"foo\", CURRENT_TIME";
+
+        let res = selection(qstring.as_bytes());
+        assert_eq!(
+            res.unwrap().1,
+            SelectStatement {
+                fields: vec![
+                    FieldDefinitionExpression::Value(FieldValueExpression::Literal(
+                        Literal::Null.into(),
+                    )),
+                    FieldDefinitionExpression::Value(FieldValueExpression::Literal(
+                        Literal::Integer(1).into(),
+                    )),
+                    FieldDefinitionExpression::Value(FieldValueExpression::Literal(
+                        Literal::String("foo".to_owned()).into(),
+                    )),
+                    FieldDefinitionExpression::Value(FieldValueExpression::Literal(
+                        Literal::CurrentTime.into(),
                     )),
                 ],
                 ..Default::default()
