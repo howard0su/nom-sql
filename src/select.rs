@@ -360,7 +360,7 @@ mod tests {
     fn select_literals() {
         use common::Literal;
 
-        let qstring = "SELECT NULL, 1, \"foo\", CURRENT_TIME FROM users;";
+        let qstring = "SELECT NULL, 1, \"foo\", CURRENT_TIME, @@version FROM users;";
         // TODO: doesn't support selecting literals without a FROM clause, which is still valid SQL
         //        let qstring = "SELECT NULL, 1, \"foo\";";
 
@@ -381,6 +381,9 @@ mod tests {
                     )),
                     FieldDefinitionExpression::Value(FieldValueExpression::Literal(
                         Literal::CurrentTime.into(),
+                    )),
+                    FieldDefinitionExpression::Value(FieldValueExpression::Literal(
+                        Literal::Variable("@version".to_owned()).into(),
                     )),
                 ],
                 ..Default::default()

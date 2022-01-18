@@ -117,6 +117,7 @@ pub enum Literal {
     CurrentTime,
     CurrentDate,
     CurrentTimestamp,
+    Variable(String),
     Placeholder(ItemPlaceholder),
 }
 
@@ -174,6 +175,7 @@ impl ToString for Literal {
             Literal::CurrentTime => "CURRENT_TIME".to_string(),
             Literal::CurrentDate => "CURRENT_DATE".to_string(),
             Literal::CurrentTimestamp => "CURRENT_TIMESTAMP".to_string(),
+            Literal::Variable(ref x) => format!("@{}", x),
             Literal::Placeholder(ref item) => item.to_string(),
         }
     }
@@ -991,6 +993,9 @@ pub fn literal(i: &[u8]) -> IResult<&[u8], Literal> {
         map(tag_no_case("current_time"), |_| Literal::CurrentTime),
         map(tag("?"), |_| {
             Literal::Placeholder(ItemPlaceholder::QuestionMark)
+        }),
+        map(preceded(tag("@"), sql_identifier), |val| {
+            Literal::Variable(str::from_utf8(val).unwrap().to_string())
         }),
         map(preceded(tag(":"), digit1), |num| {
             let value = i32::from_str(str::from_utf8(num).unwrap()).unwrap();

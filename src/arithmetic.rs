@@ -15,7 +15,7 @@ use nom::{
 use crate::{
     column::Column,
     common::{
-        as_alias, column_identifier_no_alias, integer_literal, type_identifier, Literal, SqlType,
+        as_alias, column_identifier_no_alias, literal, type_identifier, Literal, SqlType,
     },
 };
 
@@ -167,7 +167,7 @@ pub fn mul_div_operator(i: &[u8]) -> IResult<&[u8], ArithmeticOperator> {
 // Base case for nested arithmetic expressions: column name or literal.
 pub fn arithmetic_base(i: &[u8]) -> IResult<&[u8], ArithmeticBase> {
     alt((
-        map(integer_literal, ArithmeticBase::Scalar),
+        map(literal, ArithmeticBase::Scalar),
         map(column_identifier_no_alias, ArithmeticBase::Column),
         map(
             delimited(
